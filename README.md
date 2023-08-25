@@ -1,4 +1,4 @@
-# rl-ohrs
+# Oralytics-RL-Service
 
 ## Creating MySQL Data Tables
 1. Make sure you have mysql installed locally ([video here](https://www.youtube.com/watch?v=1K4m6m5y9Oo)).
