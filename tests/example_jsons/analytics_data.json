@@ -1,0 +1,14 @@
+[
+{
+"email": "robas+9@developers.pg.com",
+"analytics_data": "[{\"event\":\"app-background\",\"app_created_at\":\"2022-12-05 13:22:46\"}, {\"event\":\"GetScheduledMessagesSuccess\",\"app_created_at\":\"2022-12-25 17:08:36\"}]",
+"app_created_at": "2023-02-01 17:53:20",
+"created_at": "2023-02-01 22:53:21"
+},
+{
+"email": "robas+9@developers.pg.com",
+"analytics_data": "[{\"event\":\"app-background\",\"app_created_at\":\"2023-02-01 18:04:33\"}]",
+"app_created_at": "2023-02-01 18:04:33",
+"created_at": "2023-02-01 23:04:34"
+}
+]

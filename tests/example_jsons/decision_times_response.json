@@ -1,0 +1,9 @@
+[
+  {
+  "email": "robas+9@developers.pg.com",
+  "morningTimeWeekday": "09:00:00",
+  "eveningTimeWeekday": "22:00:00",
+  "morningTimeWeekend": "10:00:00",
+  "eveningTimeWeekend": "22:00:00"
+  }
+]
