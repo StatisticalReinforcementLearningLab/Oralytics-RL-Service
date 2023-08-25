@@ -1,4 +1,4 @@
-# rl-ohrs
+# Oralytics-RL-Service
 
 ## Creating MySQL Data Tables
 To create MySQL data tables open the file and change the fields in `database/database_connector.py`:
