@@ -10,7 +10,7 @@ Use to keep track of study users and user information
 * `user_end_day`: last day that the user is in the study
 * `morning_time_weekday`: user-specific weekday morning decision time
 * `evening_time_weekday`: user-specific weekday evening decision time
-* `morning_time_weekend`: user-specific weekend morning decision time 
+* `morning_time_weekend`: user-specific weekend morning decision time
 * `evening_time_weekend`: user-specific weekend evening decision time
 * `user_entry_decision_t`: study-level decision time when the user enters the study
 * `user_last_decision_t`: study-level decision time when the user exits the study
@@ -19,15 +19,10 @@ Use to keep track of study users and user information
 * `user_opened_app`: 1 if the user opened the app the prior day, 0 otherwise
 * `most_recent_schedule_id`: the schedule id of the schedule of actions most recently obtained by the app
 
-* `user_decision_t`: indexes the user-specific decision time starts with 0, ends with 139 (note: even values denote the morning decision time, odd values denote the evening decision time)
-
 ## policy_info_table
-Use to keep track of study level information and policy information 
-* `time_updated_policy`: timestamp of most recent policy update
+Use to keep track of policy information
 * `policy_idx`: indexes the current policy (0 - denotes the prior)
-* `time_updated_day_in_study`: timestamp of most recent day in study update
-* `calendar_decision_t`: study-level current decision time
-* `day_in_study`: study-level day in study
+* `time_updated_policy`: timestamp of most recent policy update
 
 ## posterior_weights_table
 Stores the posterior mean and variance of the RL algorithm
@@ -44,10 +39,11 @@ Stores every user data tuple from every schedule formed for that user
 * `user_end_day`: last day that the user is in the study
 * `timestamp`: timestamp of when the action from the corresponding schedule_id was created
 * `schedule_id`: id of the schedule that this action came from
-* `user_decision_t`: unique user decision time index [0, 139]
+* `user_decision_t`: indexes the user-specific decision time starts with 0, ends with 139 (note: even values denote the morning decision time, odd values denote the evening decision time)
 * `decision_time`: unique datetime (i.e., '%Y-%m-%d %H:%M:%S') for when the action was executed
 * `day_in_study`: study-level day in study
 * `policy_idx`: policy used to select action
+* `random_seed`: random integer in [0, 999] to reproduce the Bernoulli draw of the action given action-selection probability
 * `action int`: \{0, 1\} where 1 denotes a message being sent and 0 denotes a message not being sent
 * `prob`: action selection probability
 * `state.{}`: flattened state (context) vector observed by the algorithm at decision time (Note: this is the state used for action-selection as b_bar, a_bar are imputed value depending on what schedule the user gets.)
@@ -60,10 +56,11 @@ Stores the user data tuple corresponding to the action that was actually execute
 * `user_end_day`: last day that the user is in the study
 * `timestamp`: timestamp of when the action from the corresponding schedule_id was created
 * `schedule_id`: id of the schedule that this action came from
-* `user_decision_t`: unique user decision time index [0, 139]
+* `user_decision_t`: indexes the user-specific decision time starts with 0, ends with 139 (note: even values denote the morning decision time, odd values denote the evening decision time)
 * `decision_time`: unique datetime (i.e., '%Y-%m-%d %H:%M:%S') for when the action was executed
 * `day_in_study`: study-level day in study
 * `policy_idx`: policy used to select action
+* `random_seed`: random integer in [0, 999] to reproduce the Bernoulli draw of the action given action-selection probability
 * `action int`: \{0, 1\} where 1 denotes a message being sent and 0 denotes a message not being sent
 * `prob`: action selection probability
 * `state.{}`: flattened state (context) vector observed by the algorithm at decision time (Note: this is the state used for action-selection as b_bar is an imputed value depending on what schedule the user gets.)
@@ -85,7 +82,7 @@ Stores the batch data tuples (S, A, R, pi) that are used to update the RL algori
 * `user_start_day`: first day that the user enters the study
 * `user_end_day`: last day that the user is in the study
 * `timestamp`: timestamp of when this data tuple was added to the table
-* `user_decision_t`: unique user decision time index [0, 139]
+* `user_decision_t`: indexes the user-specific decision time starts with 0, ends with 139 (note: even values denote the morning decision time, odd values denote the evening decision time)
 * `decision_time`: unique datetime (i.e., '%Y-%m-%d %H:%M:%S') for when the action was executed
 * `first_policy_idx`: first policy idx to use this data tuple for update
 * `action int`: \{0, 1\} where 1 denotes a message being sent and 0 denotes a message not being sent
@@ -93,4 +90,3 @@ Stores the batch data tuples (S, A, R, pi) that are used to update the RL algori
 * `reward`: our designed surrogate reward given to the algorithm
 * `quality`: brushing quality truncated at 180 seconds
 * `state.{}`: flattened state (context) vector observed by the algorithm at decision time (Note: this is the state used to update the algorithm, b_bar and a_bar are the actual observed values for that decision time)
-

@@ -1,5 +1,6 @@
 from database_connector import MYDB
 import pandas as pd
+import os
 
 mycursor = MYDB.cursor()
 
@@ -13,10 +14,13 @@ def sql_to_df(table_name):
     try:
         query = "SELECT * FROM {};".format(table_name)
         df = pd.read_sql(query, MYDB)
+        write_path = "dataframes"
+        if not os.path.exists(write_path):
+            os.mkdir(write_path)
         # save pickle
-        pd.to_pickle(df, "dataframes/{}.p".format(table_name))
+        pd.to_pickle(df, write_path + "/{}.p".format(table_name))
         # save csv file
-        df.to_csv("dataframes/{}.csv".format(table_name))
+        df.to_csv(write_path + "/{}.csv".format(table_name))
     except Exception as e:
         print(str(e))
 

@@ -1,14 +1,17 @@
-from database.database_connector import MYDB
-from database.helpers import *
 import numpy as np
+import pandas as pd
 from datetime import datetime
-from global_vars import RL_ALG_FEATURE_DIM, POSTERIOR_TABLE_COLS
+
+from rl_ohrs.database.database_connector import MYDB
+from rl_ohrs.database.helpers import *
+from rl_ohrs.global_vars import RL_ALG_FEATURE_DIM, POSTERIOR_TABLE_COLS
 
 ### S, A, R Columns ###
 SAR_COLUMN_NAMES = ["action", "prob", "reward", "quality", "state_tod", \
                      "state_b_bar", "state_a_bar", "state_app_engage", "state_bias"]
 SA_COLUMN_NAMES = ["action", "prob", "state_tod", "state_b_bar", \
                     "state_a_bar", "state_app_engage", "state_bias"]
+USER_START_DAY_DEFAULT = datetime.strptime("0001-01-01", '%Y-%m-%d').date()
 
 ### HELPERS ###
 def get_db():
@@ -47,6 +50,10 @@ def get_user_start_and_end_date(user_id):
 
     return user_start_day, user_end_day
 
+## Helper functions for filtering by date
+def get_date(date_string):
+    return datetime.strptime(date_string, '%Y-%m-%d')
+
 """
 Pull Data
 """
@@ -58,22 +65,8 @@ def check_user_registered(user_id):
 
     return result
 
-# gets all registered users or current study users
-# registered but not in study users have identifier user_day_in_study=0
-# current study users have identifier currently_in_study=1
-def get_registered_users():
-    command_string = "SELECT user_id FROM user_info_table WHERE currently_in_study=1 OR user_day_in_study=0"
-    result = execute_pull(command_string)
-    registered_users = format_string_result(result)
-
-    return registered_users
-
-def get_current_study_users():
-    command_string = "SELECT user_id FROM user_info_table WHERE currently_in_study=1"
-    result = execute_pull(command_string)
-    current_users = format_string_result(result)
-
-    return current_users
+def user_not_in_study(user_id):
+    return get_user_info("user_start_day", user_id) == USER_START_DAY_DEFAULT
 
 def get_user_info(col_name, user_id):
     command_string = "SELECT {} FROM user_info_table WHERE user_id='{}'".format(col_name, user_id)
@@ -122,7 +115,7 @@ def get_tuple_data_col_val(col_name, user_id, schedule_id, user_decision_t):
     return result
 
 # gets study description data such as:
-# policy_idx, calendar_decision_t, day_in_study
+# policy_idx
 def get_study_description(col_name):
     command_string = "SELECT {} FROM policy_info_table".format(col_name)
     result = execute_pull(command_string)[0][0]
@@ -133,6 +126,8 @@ def get_update_data():
     command_string = "SELECT {} FROM update_data_table".format(list_to_columns(SAR_COLUMN_NAMES))
     results = execute_pull(command_string)
     results = format_batch_data_result(results)
+    if len(results) == 0:
+        return None, None, None, None
     alg_states = results[:,4:]
     actions = results[:, 0]
     pis = results[:, 1]
@@ -171,7 +166,7 @@ def push_study_description(col_name, col_val):
 
 def push_actual_tuple_data_for_users(vals):
     column_names = ["user_id", "user_start_day", "user_end_day", "timestamp", "schedule_id", \
-                    "user_decision_t", "decision_time", "day_in_study", "policy_idx", "action", "prob", \
+                    "user_decision_t", "decision_time", "day_in_study", "policy_idx", "random_seed", "action", "prob", \
                     "state_tod", "state_b_bar", "state_a_bar", "state_app_engage", "state_bias"]
     command_template = "INSERT INTO action_selection_data_table ({}) VALUES ({})"
     command_string = command_template.format(list_to_columns(column_names), list_to_vals(vals))
@@ -187,13 +182,13 @@ def push_actual_reward_data_for_users(user_id, decision_t, reward_comps):
     execute_push(command_string)
 
 def push_tuple_data_for_users(user_id, schedule_id, decision_t, decision_time, \
-                            day_in_study, policy_idx, state, action, action_prob):
+                    day_in_study, policy_idx, state, random_seed, action, action_prob):
     column_names = ["user_id", "user_start_day", "user_end_day", "timestamp", "schedule_id", \
-                    "user_decision_t", "decision_time", "day_in_study", "policy_idx", "action", "prob", \
+                    "user_decision_t", "decision_time", "day_in_study", "policy_idx", "random_seed", "action", "prob", \
                     "state_tod", "state_b_bar", "state_a_bar", "state_app_engage", "state_bias"]
     user_start_day, user_end_day = get_user_start_and_end_date(user_id)
     vals = [user_id, user_start_day, user_end_day, datetime.now(), schedule_id, \
-            decision_t, decision_time, day_in_study, policy_idx, action, action_prob, \
+            decision_t, decision_time, day_in_study, policy_idx, random_seed, action, action_prob, \
             state[0], state[1], state[2], state[3], state[4]]
     command_template = "INSERT INTO user_data_table ({}) VALUES ({})"
     command_string = command_template.format(list_to_columns(column_names), list_to_vals(vals))
@@ -223,3 +218,25 @@ def push_updated_posterior_values(posterior_mu, posterior_var):
     vals = list_to_vals([policy_idx, str(current_datetime)] + posterior_vals)
     command_string = "INSERT INTO posterior_weights_table ({}) VALUES ({})".format(POSTERIOR_TABLE_COLS, vals)
     execute_push(command_string)
+
+"""
+Integration With Clinician Dashboard
+"""
+
+def get_entire_data_table(data_table_name):
+    query = "SELECT * FROM {};".format(data_table_name)
+    DB = get_db()
+    DB.reconnect()
+    df = pd.read_sql(query, DB)
+
+    return df.to_json(date_format='iso')
+
+def get_data_table_from_timestamp(data_table_name, start_date, end_date):
+    start_date = get_date(start_date)
+    end_date = get_date(end_date)
+    query = "SELECT * FROM {} WHERE timestamp > '{}' AND timestamp < '{}'".format(data_table_name, start_date, end_date)
+    DB = get_db()
+    DB.reconnect()
+    df = pd.read_sql(query, DB)
+
+    return df.to_json(date_format='iso')

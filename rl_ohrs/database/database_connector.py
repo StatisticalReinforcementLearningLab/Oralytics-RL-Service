@@ -1,6 +1,7 @@
 import mysql.connector
 
 # local mySQL table
+# Note: will need to change once in cloud server
 MYDB = mysql.connector.connect(
   host="localhost",
   user="root",

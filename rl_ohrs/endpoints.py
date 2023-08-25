@@ -1,21 +1,18 @@
-from flask import Flask, request
-import requests
-from action_selection import action_selection
-from bayes_lr import BayesianLinearRegression
-from schedule import *
-from database.data_tables_integration import get_registered_users
-from update import update_study_info, update_recent_data, use_data_update_posterior
-from maintain_users import maintain_current_users
+from rl_ohrs import app
+from rl_ohrs.action_selection import action_selection
+from rl_ohrs.bayes_lr import BayesianLinearRegression
+from rl_ohrs.schedule import *
+from rl_ohrs.dependencies.dependency_integration import did_pure_exploration_end, get_registered_users
+from rl_ohrs.update import update_recent_data, use_data_update_posterior
+from rl_ohrs.maintain_users import update_internal_users
 
 RL_ENDPOINTS_HASH = ""
 
 # Note: everyday, the endpoints should be called in the following order
-# 1. '/update_study_info/'
-# 2. '/update/'
-# 3. '/update_current_users/'
-# 4. '/decision/all'
+# 1. '/update/'
+# 2. main controller updates their own '/ohrsenrollmentsall/' endpoint
+# 3. '/decision/all'
 
-app = Flask(__name__)
 @app.route('/decision/<user_id>', methods=['GET', 'POST'])
 def decision(user_id):
     # 1. main controller will send a user_id
@@ -33,12 +30,15 @@ def decision(user_id):
 
 @app.route('/decision/all/{}'.format(RL_ENDPOINTS_HASH), methods=['GET', 'POST'])
 def decision_all():
+    # we update internal user database
+    update_internal_users()
+    print("Updated Internal Users.")
     # call endpoint for all registered users
-    current_users_list = get_registered_users()
+    registered_users_list = get_registered_users()
     response_list = []
     # get current posterior sampling algorithm
     current_alg = BayesianLinearRegression()
-    for user_id in current_users_list:
+    for user_id in registered_users_list:
         action_schedule, schedule_id = action_selection(current_alg, user_id)
         response = create_single_response_dict(user_id, schedule_id, action_schedule)
         response_list.append(response)
@@ -47,27 +47,18 @@ def decision_all():
 
     return all_response
 
-@app.route('/update_study_info/{}'.format(RL_ENDPOINTS_HASH), methods=['GET'])
-def update_current_study_info():
-    update_study_info()
+@app.route('/update_batch_data/{}'.format(RL_ENDPOINTS_HASH), methods=['GET'])
+def update_batch_data():
+    update_recent_data()
+    print("Updated Batch Data.")
 
-    return "Update study info"
+    return "Update Batch Data Endpoint Success."
 
 # We want this endpoint to be called daily
 @app.route('/update/{}'.format(RL_ENDPOINTS_HASH), methods=['GET'])
 def update():
-    update_recent_data()
-    print("Updated Batch Data.")
-    use_data_update_posterior()
-    print("Updated Posterior Algorithm Weights.")
+    if did_pure_exploration_end():
+        use_data_update_posterior()
+        print("Updated Posterior Algorithm Weights.")
 
-    return "Update batch data and posterior weights."
-
-# - We want this endpoint to be called daily before /decisions/all
-# - This endpoint updates the database that maintains which users
-# are currently in the study
-@app.route('/update_current_users/{}'.format(RL_ENDPOINTS_HASH), methods=['GET'])
-def update_current_users():
-    maintain_current_users()
-
-    return "List of current study users updated."
+    return "Update Posterior Endpoint Success."

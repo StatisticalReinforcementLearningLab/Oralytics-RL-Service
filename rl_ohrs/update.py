@@ -1,15 +1,14 @@
 import numpy as np
 from datetime import datetime
-from database.data_tables_integration import (
+import traceback
+
+from rl_ohrs.database.data_tables_integration import (
             set_user_info,
             get_user_info,
             get_tuple_data_for_users,
             push_update_data_for_user,
             get_update_data,
             push_updated_posterior_values,
-            get_current_study_users,
-            get_study_description,
-            push_study_description,
             get_morning_decision_t,
             get_evening_decision_t,
             get_actual_tuple_data_for_users,
@@ -17,10 +16,12 @@ from database.data_tables_integration import (
             get_tuple_data_col_val,
             push_actual_reward_data_for_users
 )
-from dependencies.dependency_integration import get_recent_user_data
-from reward_definition import get_reward_components
-from bayes_lr import update_posterior
-from schedule import construct_schedule_id
+from rl_ohrs.dependencies.dependency_integration import get_recent_user_data, get_current_users
+from rl_ohrs.day_in_study import get_user_day_in_study
+from rl_ohrs.reward_definition import get_reward_components
+from rl_ohrs.bayes_lr import update_posterior
+from rl_ohrs.schedule import construct_schedule_id
+from rl_ohrs.rl_email import exception_handler
 
 def get_schedule_id(user_id):
     return get_user_info("most_recent_schedule_id", user_id)
@@ -33,7 +34,7 @@ def resolve_and_update_schedule_id(user_id, recent_data_dict):
     morning_schedule_id = previous_schedule_id
     evening_schedule_id = previous_schedule_id
     if app_engagement_indict:
-        user_day_in_study = get_user_info("user_day_in_study", user_id)
+        user_day_in_study = int(get_user_day_in_study(user_id)) - 1
         most_recent_schedule_id = construct_schedule_id(user_id, user_day_in_study)
         set_user_info(user_id, "most_recent_schedule_id", most_recent_schedule_id)
         if recent_data_dict["morning_used_recent_schedule"]:
@@ -83,19 +84,14 @@ def get_row_for_batch_data_update(user_id, decision_t, actual_schedule_id, \
     else:
         return None, None
 
-# should be called at the beginning of everyday
-def update_study_info():
-    push_study_description("calendar_decision_t", int(get_study_description("calendar_decision_t")) + 2)
-    push_study_description("day_in_study", int(get_study_description("day_in_study")) + 1)
-    push_study_description("time_updated_day_in_study", datetime.now())
-
 def update_recent_data():
-    current_users_list = get_current_study_users()
+    current_users_list = get_current_users()
     for user_id in current_users_list:
         # grab most recent context
         try:
             recent_data_dict = get_recent_user_data(user_id)
-            user_day_in_study = int(get_user_info("user_day_in_study", user_id))
+            assert(recent_data_dict != None)
+            user_day_in_study = int(get_user_day_in_study(user_id)) - 1
             morning_schedule_id, evening_schedule_id = resolve_and_update_schedule_id(user_id, recent_data_dict)
             # push correct recent_morning data row to action selection data table
             get_and_push_actual_row(user_id, morning_schedule_id, get_morning_decision_t(user_day_in_study))
@@ -117,20 +113,22 @@ def update_recent_data():
             set_user_info(user_id, "user_opened_app", recent_data_dict["app_engagement"])
 
         except Exception as e:
-            print("Error updating batch data for user {}".format(user_id))
             print(str(e))
-            # ANNA TODO: needs logger
+            exception_handler([user_id], "user batch data update", traceback.format_exc())
             continue
 
 def use_data_update_posterior():
     try:
         # pull update data table data
         alg_states, actions, pis, rewards = get_update_data()
+        if all(item is None for item in (alg_states, actions, pis, rewards)):
+            print("No Batch Data, Don't Update Posterior")
+            return
         # update parameters
         posterior_mean, posterior_var = update_posterior(alg_states, actions, pis, rewards)
         # push parameters to internal data storage
         push_updated_posterior_values(posterior_mean, posterior_var)
 
     except Exception as e:
-        print("Could not update posterior.")
         print(str(e))
+        exception_handler([], "posterior update fail", traceback.format_exc())

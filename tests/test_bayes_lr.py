@@ -1,12 +1,13 @@
 import unittest
 from unittest.mock import patch
-from smoothing_function import genearlized_logistic_func
 import numpy as np
-from global_vars import (
+
+from rl_ohrs.smoothing_function import genearlized_logistic_func
+from rl_ohrs.global_vars import (
             D_ADVANTAGE,
             D_BASELINE
 )
-from bayes_lr import *
+from rl_ohrs.bayes_lr import *
 
 THETA_DIM = D_BASELINE + 2 * D_ADVANTAGE
 GENERALIZED_LOGISTIC_FUNC = lambda x: np.apply_along_axis(genearlized_logistic_func, 0, x)
@@ -27,7 +28,7 @@ class BayesianLinearRegressionTest(unittest.TestCase):
         beta_post_mean = np.ones(D_ADVANTAGE)
         beta_post_var = 2 * np.diag(np.ones(D_ADVANTAGE))
         # closed form prob
-        _, posterior_prob = bayes_lr_action_selector(beta_post_mean, beta_post_var, advantage_state)
+        _, posterior_prob, _ = bayes_lr_action_selector(beta_post_mean, beta_post_var, advantage_state)
 
         # sampled prob
         beta_posterior_draws = get_beta_posterior_draws(beta_post_mean, beta_post_var)
@@ -37,16 +38,15 @@ class BayesianLinearRegressionTest(unittest.TestCase):
         print("SAMPLED PROB:", sampled_prob)
         np.testing.assert_almost_equal(posterior_prob, sampled_prob, decimal=2)
 
-    @patch("bayes_lr.get_posterior_values", return_value = (0, np.zeros(THETA_DIM), np.diag(np.ones(THETA_DIM))))
+    @patch("rl_ohrs.bayes_lr.get_posterior_values", return_value = (0, np.zeros(THETA_DIM), np.diag(np.ones(THETA_DIM))))
     def test_instantiation_and_action_selection(self, get_posterior_values):
         blr = BayesianLinearRegression()
         advantage_state = np.array([1, 1.2, 0.8, 0, 1])
-        np.random.seed(1)
-        action, prob = blr.action_selection(advantage_state)
-        np.random.seed(1)
-        action2, prob2 = bayes_lr_action_selector(np.zeros(5), np.diag(np.ones(5)), advantage_state)
-        self.assertEqual(prob, prob2)
-        self.assertEqual(action, action2)
+        for _ in range(100):
+            action, prob, seed = blr.action_selection(advantage_state)
+            test_rng = np.random.default_rng(seed)
+            outcome = test_rng.binomial(n=1, p=prob)
+            self.assertEqual(action, outcome)
 
     def test_update_posterior_w(self):
         # ground truth values

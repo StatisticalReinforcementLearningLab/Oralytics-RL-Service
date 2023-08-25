@@ -1,60 +1,87 @@
-from dependencies.dependency_connector import (
-    DATA_DEPENDENCY_REQUEST,
-    DECISION_TIMES_REQUEST,
-    BETA_USERS_REQUEST,
-    ANALYTICS_DATA_REQUEST
-)
-from database.data_tables_integration import get_user_info
 import requests
 from datetime import datetime, timedelta
 import json
+import traceback
+
+from rl_ohrs.dependencies.dependency_connector import (
+    DATA_DEPENDENCY_REQUEST,
+    DECISION_TIMES_REQUEST,
+    STUDY_USERS_REQUEST,
+    ANALYTICS_DATA_REQUEST
+)
+from rl_ohrs.database.data_tables_integration import get_user_info
+from rl_ohrs.rl_email import exception_handler
 
 """
 Calling Endpoints
 """
-def get_json_response(request_path):
+def get_json_response(user_id, endpoint_name):
+    if endpoint_name == "brushing":
+        request_path = DATA_DEPENDENCY_REQUEST.format(user_id)
+    elif endpoint_name == "app_analytics":
+        request_path = ANALYTICS_DATA_REQUEST.format(user_id)
+    elif endpoint_name == "study_users":
+        request_path = STUDY_USERS_REQUEST
+    elif endpoint_name == "decision_times":
+        request_path = DECISION_TIMES_REQUEST.format(user_id)
+    else:
+        raise Exception("provided endpoint_name doesn't exist")
     try:
         response = requests.get(request_path)
+        try:
+            return response.json()
 
-        return response.json()
+        except Exception as e:
+            print(str(e))
+            exception_handler([user_id, endpoint_name], "dependency json", traceback.format_exc())
 
     except Exception as e:
         print(str(e))
-        print("Couldn't get response for {}".format(request_path))
+        exception_handler([user_id, endpoint_name], "dependency fail", traceback.format_exc())
 
 ### Getting Brushing Data ###
 def get_user_brushing_data(user_id):
-    request_path = DATA_DEPENDENCY_REQUEST.format(user_id)
 
-    return get_json_response(request_path)
+    return get_json_response(user_id, "brushing")
 
 ### Getting Analytics Data ###
 def get_user_analytics_data(user_id):
-    request_path = ANALYTICS_DATA_REQUEST.format(user_id)
 
-    return get_json_response(request_path)
+    return get_json_response(user_id, "app_analytics")
 
 ### Getting Study Users ###
-def process_users(users_json):
-    current_users_list = []
-    for block in users_json:
-        current_users_list.append(block['email'])
+def get_study_users_data():
 
-    return current_users_list
+    return get_json_response(None, "study_users")
 
-# ANNA TODO: for pilot study RL service handles current users
-# for real study, main controller will handle this functionality
 def get_current_users():
+    json_response = get_study_users_data()
     try:
-        # CHANGED TO BETA USERS FOR NOW BECAUSE OF BETA TEST
-        current_users_json_response = get_json_response(BETA_USERS_REQUEST)
-        current_users_list = process_users(current_users_json_response)
-
-        return current_users_list
+        return [block['email'] for block in json_response if block["user_currently_in_study"] == 1]
 
     except Exception as e:
         print(str(e))
-        print("Error in getting and processing study users.")
+        exception_handler(["study_users", None], "dependency data malformed", traceback.format_exc())
+
+def get_registered_users():
+    json_response = get_study_users_data()
+    try:
+        return [block['email'] for block in json_response if block["user_is_registered"] == 1]
+
+    except Exception as e:
+        print(str(e))
+        exception_handler(["study_users", None], "dependency data malformed", traceback.format_exc())
+
+def did_pure_exploration_end():
+    try:
+        json_response = get_study_users_data()
+        num_users_started_study = len([block['email'] for block in json_response if block["user_start_date"]])
+
+        return num_users_started_study > 15
+
+    except Exception as e:
+        print(str(e))
+        exception_handler(["study_users", None], "dependency data malformed", traceback.format_exc())
 
 ### Getting User-Specific Decision Times (Weekday and Weekend) ###
 def process_decision_times(decision_times_json):
@@ -62,22 +89,24 @@ def process_decision_times(decision_times_json):
 
     return decision_times_dict
 
+### Getting Decision Times Data ###
 def get_user_decision_times(user_id):
+    json_response = get_json_response(user_id, "decision_times")
     try:
-        json_response = get_json_response(DECISION_TIMES_REQUEST.format(user_id))
-        decision_times_dict = process_decision_times(json_response)
-
-        return decision_times_dict
+        return process_decision_times(json_response)
 
     except Exception as e:
         print(str(e))
-        print("Error in getting and processing user decision times for user {}.".format(user_id))
+        exception_handler(["decision_times", user_id], "dependency data malformed", traceback.format_exc())
 
 """
 Helpers for Brushing and Analytics Data
 """
 def get_datetime(datetime_string):
     return datetime.strptime(datetime_string, '%Y-%m-%d %H:%M:%S')
+
+def get_date(date_string):
+    return datetime.strptime(date_string, '%Y-%m-%d')
 
 def is_weekend(date):
     if date.weekday() > 4:
@@ -116,7 +145,12 @@ def get_brushing_comps(recent_response):
 # if user has no brushing data then the json_response will be:
 # {'message': 'Email not found'}
 def check_no_data_for_user(json_response):
-    return "message" in json_response and json_response["message"] == 'Email not found'
+    # Email not found condition
+    not_found_condition = "message" in json_response and json_response["message"] == 'Email not found'
+    # Empty response condition if json_response is empty list
+    empty_response = len(json_response) == 0
+
+    return not_found_condition or empty_response
 
 def parse_analytics_response(json_response):
     for session in json_response:
@@ -142,9 +176,8 @@ def check_user_open_app(user_id):
 # was from the most recent schedule
 def check_action_from_schedule(user_id, app_timestamp):
     app_date_time = get_datetime(app_timestamp)
-    date = app_date_time.date()
     yesterday_date = (datetime.now().date() - timedelta(days=1)).strftime("%Y-%m-%d")
-    if is_weekend(date):
+    if is_weekend(get_date(yesterday_date)):
         user_morning_dt = get_datetime(yesterday_date + " " + get_user_info("morning_time_weekend", user_id))
         user_evening_dt = get_datetime(yesterday_date + " " + get_user_info("evening_time_weekend", user_id))
     else:
@@ -160,7 +193,6 @@ def check_action_from_schedule(user_id, app_timestamp):
     else:
         return 0, 1
 
-# ANNA TODO: need to think about how this would work if a user sets their evening decision time to past midnight like 2AM
 def get_previous_evening_window(user_id):
     user_evening_dt = get_user_dt_for_date(datetime.now().date() - timedelta(days=2), "evening", user_id)
     user_next_morning_dt = get_user_dt_for_date(datetime.now().date() - timedelta(days=1), "morning", user_id)
@@ -183,19 +215,17 @@ def is_within_window(datetime_string, start_datetime, end_datetime):
 
     return dt >= start_datetime and dt < end_datetime
 
-# ANNA TODO: SPLIT THIS UP INTO TWO DIFFERENT FUNCTIONS IN CASE ONE DEPENDENCY GOES WRONG!
-# ANNA TODO: if there's an issue and this returns None, be able to error log and handle that
 # gets brushing quality for evening (curr_day - 2), brushing quality for morning (curr_day - 1),
 # app_engagement for morning (curr_day - 1), and app_engagement for evening (curr_day - 1)
 def get_recent_user_data(user_id):
     result_dict = {}
+    ##### PROCESSING BRUSHING DATA FOR evening (curr_day - 2) and morning (curr_day - 1) ######
     try:
         brushing_json_response = get_user_brushing_data(user_id)
         # no brushing data at all means that user has not "started the study"
         if check_no_data_for_user(brushing_json_response):
-            print("THERE'S NO DATA FOR USER {}".format(user_id))
+            exception_handler(["brushing", user_id], "no data for user", traceback.format_exc())
             return None
-        ##### PROCESSING BRUSHING DATA FOR evening (curr_day - 2) and morning (curr_day - 1) ######
         previous_evening_start, previous_evening_end = get_previous_evening_window(user_id)
         recent_morning_start, recent_morning_end = get_recent_morning_window(user_id)
         previous_evening_filter = lambda datetime_string: is_within_window(datetime_string, previous_evening_start, previous_evening_end)
@@ -208,7 +238,11 @@ def get_recent_user_data(user_id):
                         (0, 0) if len(previous_evening_brushing) == 0 else get_brushing_comps(previous_evening_brushing)
         result_dict["recent_morning_duration"], result_dict["recent_morning_pressure"] = \
                         (0, 0) if len(recent_morning_brushing) == 0 else get_brushing_comps(recent_morning_brushing)
-        ##### PROCESSING ANALYTICS DATA FOR morning (curr_day - 1) and evening (curr_day - 1) ######
+    except Exception as e:
+        print(str(e))
+        exception_handler(["brushing", user_id], "dependency data malformed", traceback.format_exc())
+    ##### PROCESSING ANALYTICS DATA FOR morning (curr_day - 1) and evening (curr_day - 1) ######
+    try:
         opened_app, app_timestamp = check_user_open_app(user_id)
         result_dict["app_engagement"] = opened_app
         if opened_app:
@@ -219,9 +253,8 @@ def get_recent_user_data(user_id):
         return result_dict
 
     except Exception as e:
-        print("Error: couldn't get recent user data for user: {}.".format(user_id))
         print(str(e))
-        # ANNA TODO: needs logger
+        exception_handler(["app", user_id], "dependency data malformed", traceback.format_exc())
 
 # this is to check if a user has their first brushing session
 # and can therefore begin the study

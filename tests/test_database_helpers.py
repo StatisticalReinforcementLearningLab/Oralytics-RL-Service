@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from database.helpers import *
+from rl_ohrs.database.helpers import *
 
 class DataTablesIntegrationTest(unittest.TestCase):
 

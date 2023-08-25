@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import patch
-from process_state import *
 import numpy as np
+
+from rl_ohrs.process_state import *
+
 
 class ProcessStateTest(unittest.TestCase):
 
@@ -13,13 +15,13 @@ class ProcessStateTest(unittest.TestCase):
 
         np.testing.assert_array_equal(state, np.array([0, b_bar, a_bar, 1, 1]))
 
-    @patch("process_state.get_user_data", return_value = 120 * np.ones(6))
+    @patch("rl_ohrs.process_state.get_user_data", return_value = 120 * np.ones(6))
     def test_get_most_recent_qualities(self, get_user_data):
         qualities = get_most_recent_qualities("robas+9")
 
         self.assertTrue((qualities == 120 * np.ones(6)).all())
 
-    @patch("process_state.get_user_data", return_value = np.ones(6))
+    @patch("rl_ohrs.process_state.get_user_data", return_value = np.ones(6))
     def test_get_most_recent_actions(self, get_user_data):
         actions = get_most_recent_actions("robas+9")
 
@@ -43,8 +45,8 @@ class ProcessStateTest(unittest.TestCase):
         self.assertEqual(b_bar, 120)
         self.assertEqual(a_bar, 0)
 
-    @patch('process_state.calculate_b_bar', return_value = 1000)
-    @patch('process_state.calculate_a_bar', return_value = 1)
+    @patch('rl_ohrs.process_state.calculate_b_bar', return_value = 1000)
+    @patch('rl_ohrs.process_state.calculate_a_bar', return_value = 1)
     def test_get_b_bar_a_bar_after_first_week(self, calculate_a_bar, calculate_b_bar):
         j = 20
         user_qualities = 120 * np.ones(j)
@@ -54,9 +56,9 @@ class ProcessStateTest(unittest.TestCase):
         self.assertEqual(b_bar, 1000)
         self.assertEqual(a_bar, 1)
 
-    @patch('process_state.get_user_info', return_value = 2)
-    @patch('process_state.get_b_bar_a_bar', return_value = (0, 0))
-    @patch('process_state.process_alg_state', return_value = np.ones(5))
+    @patch('rl_ohrs.process_state.get_user_info', return_value = 2)
+    @patch('rl_ohrs.process_state.get_b_bar_a_bar', return_value = (0, 0))
+    @patch('rl_ohrs.process_state.process_alg_state', return_value = np.ones(5))
     def test_get_and_process_states(self, process_alg_state, get_b_bar_a_bar, get_user_info):
         morning_state, evening_state = get_and_process_states("robas+9", None, None)
 

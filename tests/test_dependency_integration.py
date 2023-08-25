@@ -1,8 +1,18 @@
 import unittest
 from unittest.mock import patch, ANY, call
 import json
-from dependencies.dependency_integration import *
 from datetime import datetime
+
+from rl_ohrs.dependencies.dependency_integration import *
+
+## def get the request, call this for json error test
+# instead of json.load, only mock request and have dependency integration do jsonify
+def get_example_response(request):
+    f = open('tests/example_jsons/' + request)
+    response = f.read()
+    f.close()
+
+    return response
 
 def get_example_json_data(file_name):
     f = open('tests/example_jsons/' + file_name)
@@ -67,7 +77,7 @@ class DependencyIntegrationTest(unittest.TestCase):
         result = is_yesterdays_data(date_string)
         self.assertEqual(result, False)
 
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_within_previous_evening_window(self, get_user_info):
         date_string_1 = (datetime.now().date() - timedelta(days=2)).strftime("%Y-%m-%d") + " " + "23:00:00"
         date_string_2 = (datetime.now().date() - timedelta(days=1)).strftime("%Y-%m-%d") + " " + "1:00:00"
@@ -80,7 +90,7 @@ class DependencyIntegrationTest(unittest.TestCase):
         self.assertEqual(result_2, True)
         self.assertEqual(result_3, False)
 
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_get_recent_morning_window(self, get_user_info):
         date_string_1 = (datetime.now().date() - timedelta(days=1)).strftime("%Y-%m-%d") + " " + "10:30:00"
         date_string_2 = (datetime.now().date() - timedelta(days=1)).strftime("%Y-%m-%d") + " " + "16:00:00"
@@ -104,14 +114,14 @@ class DependencyIntegrationTest(unittest.TestCase):
         user_has_no_data = check_no_data_for_user(recent_response)
         self.assertTrue(user_has_no_data)
 
-    @patch("dependencies.dependency_integration.get_user_analytics_data", return_value=get_example_json_data("analytics_data.json"))
-    @patch("dependencies.dependency_integration.is_yesterdays_data", return_value=True)
+    @patch("rl_ohrs.dependencies.dependency_integration.get_user_analytics_data", return_value=get_example_json_data("analytics_data.json"))
+    @patch("rl_ohrs.dependencies.dependency_integration.is_yesterdays_data", return_value=True)
     def test_check_user_open_app(self, is_yesterdays_data, get_user_analytics_data):
         opened_app, app_timestamp = check_user_open_app(self.USER_ID)
         self.assertEqual(opened_app, 1)
         self.assertEqual(app_timestamp, "2022-12-25 17:08:36")
 
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_check_action_from_schedule(self, get_user_info):
         # after evening dt
         app_timestamp = datetime.now().date().strftime("%Y-%m-%d") + " 01:00:00"
@@ -129,10 +139,10 @@ class DependencyIntegrationTest(unittest.TestCase):
         self.assertEqual(m_indicator, 0)
         self.assertEqual(e_indicator, 1)
 
-    @patch('dependencies.dependency_integration.get_user_brushing_data', return_value=get_recent_brushing_data())
-    @patch('dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("6:00:00"))
-    @patch('dependencies.dependency_integration.is_yesterdays_data', return_value=True)
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=get_recent_brushing_data())
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("6:00:00"))
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=True)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_get_user_data_all_brushing_all_recent_actions(self, get_user_info, is_yesterdays_data, \
                                 get_user_analytics_data, get_user_brushing_data):
         result_dict = get_recent_user_data(self.USER_ID)
@@ -145,10 +155,10 @@ class DependencyIntegrationTest(unittest.TestCase):
           'evening_used_recent_schedule': 1
           }, result_dict)
 
-    @patch('dependencies.dependency_integration.get_user_brushing_data', return_value=get_old_brushing_data())
-    @patch('dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("6:00:00"))
-    @patch('dependencies.dependency_integration.is_yesterdays_data', return_value=False)
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=get_old_brushing_data())
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("6:00:00"))
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=False)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_get_user_data_no_brushing_no_open_app(self, get_user_info, is_yesterdays_data, \
                                 get_user_analytics_data, get_user_brushing_data):
         result_dict = get_recent_user_data(self.USER_ID)
@@ -159,10 +169,10 @@ class DependencyIntegrationTest(unittest.TestCase):
           'app_engagement': 0
           }, result_dict)
 
-    @patch('dependencies.dependency_integration.get_user_brushing_data', return_value=get_some_brushing_data())
-    @patch('dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("23:59:00"))
-    @patch('dependencies.dependency_integration.is_yesterdays_data', return_value=True)
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=get_some_brushing_data())
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("23:59:00"))
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=True)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_get_user_data_some_brushing_no_recent_actions(self, get_user_info, is_yesterdays_data, \
                                 get_user_analytics_data, get_user_brushing_data):
         result_dict = get_recent_user_data(self.USER_ID)
@@ -175,10 +185,10 @@ class DependencyIntegrationTest(unittest.TestCase):
           'evening_used_recent_schedule': 0
           }, result_dict)
 
-    @patch('dependencies.dependency_integration.get_user_brushing_data', return_value=get_old_brushing_data())
-    @patch('dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("14:00:00"))
-    @patch('dependencies.dependency_integration.is_yesterdays_data', return_value=True)
-    @patch('dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=get_old_brushing_data())
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("14:00:00"))
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=True)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
     def test_get_user_data_no_brushing_one_recent_actions(self, get_user_info, is_yesterdays_data, \
                                 get_user_analytics_data, get_user_brushing_data):
         result_dict = get_recent_user_data(self.USER_ID)
@@ -191,10 +201,62 @@ class DependencyIntegrationTest(unittest.TestCase):
           'evening_used_recent_schedule': 1
           }, result_dict)
 
-    def test_process_users(self):
-        users_json = get_example_json_data("study_users.json")
-        users = process_users(users_json)
-        self.assertEqual(users, ["robas+1@developers.pg.com", "robas+2@developers.pg.com", "robas+3@developers.pg.com"])
+    @patch('rl_ohrs.dependencies.dependency_integration.requests.get')
+    @patch("rl_ohrs.dependencies.dependency_integration.exception_handler")
+    def test_request_path_response_error(self, exception_handler, get):
+        # mocks request failing
+        get.side_effect = requests.exceptions.ConnectionError()
+        get_json_response(self.USER_ID, "brushing")
+        self.assertRaises(Exception, get_json_response)
+        exception_handler.assert_called_with(ANY, "dependency fail", ANY)
+
+    ## change this test, instead of get_example_json_data use new function
+    @patch('rl_ohrs.dependencies.dependency_integration.requests.get', return_value=get_example_response("wrong_data.json"))
+    @patch("rl_ohrs.dependencies.dependency_integration.exception_handler")
+    def test_jsonify_error(self, exception_handler, get):
+        get_json_response(self.USER_ID, "brushing")
+        # will error out when get_json_response tries to jsonify
+        self.assertRaises(Exception, get_json_response)
+        exception_handler.assert_called_with(ANY, "dependency json", ANY)
+
+    # return the response
+    ## will probably need to double check this
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=None)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=get_recent_analytics_data("14:00:00"))
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=True)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch("rl_ohrs.dependencies.dependency_integration.exception_handler")
+    def test_malformed_data_error(self, exception_handler, get_user_info, is_yesterdays_data, get_user_analytics_data, \
+                                  get_user_brushing_data):
+        get_recent_user_data(self.USER_ID)
+        self.assertRaises(Exception, get_recent_user_data)
+        exception_handler.assert_called_with(ANY, ANY, ANY)
+
+    ## and this
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_brushing_data', return_value=get_old_brushing_data())
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_analytics_data', return_value=None)
+    @patch('rl_ohrs.dependencies.dependency_integration.is_yesterdays_data', return_value=True)
+    @patch('rl_ohrs.dependencies.dependency_integration.get_user_info', side_effect=lambda a,b : mock_get_user_info(a,b))
+    @patch("rl_ohrs.dependencies.dependency_integration.exception_handler")
+    def test_malformed_data_error(self, exception_handler, get_user_info, is_yesterdays_data, get_user_analytics_data, \
+                                  get_user_brushing_data):
+        get_recent_user_data(self.USER_ID)
+        self.assertRaises(Exception, get_recent_user_data)
+        exception_handler.assert_called_with(ANY, ANY, ANY)
+
+    @patch('rl_ohrs.dependencies.dependency_integration.get_study_users_data', return_value=get_example_json_data("some_users_start.json"))
+    def test_get_current_users(self, get_study_users_data):
+        users = get_current_users()
+        self.assertEqual(users, ['robas+3@developers.pg.com', 'robas+9@developers.pg.com', 'robas+92@developers.pg.com', 'robas+97@developers.pg.com'])
+
+    @patch('rl_ohrs.dependencies.dependency_integration.get_study_users_data', return_value=get_example_json_data("still_use_prior.json"))
+    def test_get_registered_users(self, get_study_users_data):
+        users = get_registered_users()
+        self.assertEqual(users, 16 * ['robas+9@developers.pg.com'])
+
+    @patch('rl_ohrs.dependencies.dependency_integration.get_study_users_data', return_value=get_example_json_data("exploration_period_ends.json"))
+    def test_did_pure_exploration_end(self, get_study_users_data):
+        self.assertTrue(did_pure_exploration_end())
 
     def test_get_user_decision_times(self):
         users_dt_json = get_example_json_data("decision_times_response.json")

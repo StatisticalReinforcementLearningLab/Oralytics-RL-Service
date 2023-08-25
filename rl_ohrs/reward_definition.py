@@ -14,11 +14,17 @@ def process_brushing_quality(brushing_quality):
 def normalize_b_bar(b_bar):
     return (b_bar - (181 / 2)) / (179 / 2)
 
+# we need a_bar to be between -1 and 1 because for behavioral scientists to interpret
+# the intercept term, all state features need to have meaning at value 0.
+# unnormalized a_bar is between [0, 1]
+def normalize_a_bar(a_bar):
+  return 2 * (a_bar - 0.5)
+
 """ GLOBAL VALUES """
 GAMMA = 13/14
 B = normalize_b_bar(111)
-A_1 = 0.5
-A_2 = 0.8
+A_1 = normalize_a_bar(0.5)
+A_2 = normalize_a_bar(0.8)
 DISCOUNTED_GAMMA_ARRAY = GAMMA ** np.flip(np.arange(14))
 CONSTANT = (1 - GAMMA) / (1 - GAMMA**14)
 XI_1 = 100

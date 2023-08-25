@@ -1,8 +1,9 @@
-from database_connector import MYDB
-from helpers import *
 import numpy as np
 import pandas as pd
 from datetime import datetime
+
+from database_connector import MYDB
+from helpers import *
 
 RL_ALG_FEATURE_DIM = 15
 
@@ -11,12 +12,12 @@ POSTERIOR_COLS = ["posterior_var_{}_{}, ".format(i, j) for i in range(RL_ALG_FEA
 POSTERIOR_TABLE_COLS = "policy_idx, " + "timestamp," + ''.join(MEAN_COLS) + ''.join(POSTERIOR_COLS)
 POSTERIOR_TABLE_COLS = POSTERIOR_TABLE_COLS[:-2]
 
-PRIOR_MU = np.array([0, 4.925, 0, 0, 82.209, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-SIGMA_BETA = 29.624
-PRIOR_SIGMA = np.diag(np.array([29.090**2, 30.186**2, SIGMA_BETA**2, SIGMA_BETA**2, 46.240**2, \
-                                    SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2,\
-                                    SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2]))
-
+ALPHA_0_MU = [18, 0, 30, 0, 73]
+BETA_MU = [0, 0, 0, 53, 0]
+PRIOR_MU = np.array(ALPHA_0_MU + BETA_MU + BETA_MU)
+ALPHA_0_SIGMA = [73**2, 25**2, 95**2, 27**2, 83**2]
+BETA_SIGMA = [12**2, 33**2, 35**2, 56**2, 17**2]
+PRIOR_SIGMA = np.diag(np.array(ALPHA_0_SIGMA + BETA_SIGMA + BETA_SIGMA))
 
 mycursor = MYDB.cursor()
 
@@ -49,16 +50,13 @@ def init_policy_info_table():
     try:
         command_string = """CREATE TABLE policy_info_table (
                                                             time_updated_policy DATETIME,
-                                                            policy_idx int,
-                                                            time_updated_day_in_study DATETIME,
-                                                            calendar_decision_t int,
-                                                            day_in_study int
+                                                            policy_idx int
                                                             )"""
         mycursor.execute(command_string)
 
         # inputting values
-        vals = list_to_vals([str(datetime.now()), 0, str(datetime.now()), -2, 0])
-        sql_command = "INSERT INTO policy_info_table (time_updated_policy, policy_idx, time_updated_day_in_study, calendar_decision_t, day_in_study) VALUES ({})".format(vals)
+        vals = list_to_vals([str(datetime.now()), 0])
+        sql_command = "INSERT INTO policy_info_table (time_updated_policy, policy_idx) VALUES ({})".format(vals)
         mycursor.execute(sql_command)
         MYDB.commit()
     except Exception as e:
@@ -79,6 +77,7 @@ def create_action_selection_data_table():
                                                         decision_time DATETIME,
                                                         day_in_study int,
                                                         policy_idx int,
+                                                        random_seed int,
                                                         action int,
                                                         prob double,
                                                         state_tod int,
@@ -116,6 +115,7 @@ def create_user_data_table():
                                                         decision_time DATETIME,
                                                         day_in_study int,
                                                         policy_idx int,
+                                                        random_seed int,
                                                         action int,
                                                         prob double,
                                                         state_tod int,

@@ -1,10 +1,11 @@
-from database.database_connector import TEST_MYDB
-from database.helpers import *
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from global_vars import PRIOR_MU, PRIOR_SIGMA
-from global_vars import RL_ALG_FEATURE_DIM, POSTERIOR_TABLE_COLS
+
+from rl_ohrs.database.database_connector import TEST_MYDB
+from rl_ohrs.database.helpers import *
+from rl_ohrs.global_vars import PRIOR_MU, PRIOR_SIGMA
+from rl_ohrs.global_vars import RL_ALG_FEATURE_DIM, POSTERIOR_TABLE_COLS
 
 mycursor = TEST_MYDB.cursor()
 
@@ -40,16 +41,13 @@ def init_policy_info_table():
     try:
         command_string = """CREATE TABLE policy_info_table (
                                                             time_updated_policy DATETIME,
-                                                            policy_idx int,
-                                                            time_updated_day_in_study DATETIME,
-                                                            calendar_decision_t int,
-                                                            day_in_study int
+                                                            policy_idx int
                                                             )"""
         mycursor.execute(command_string)
 
         # inputting values
-        vals = list_to_vals([str(datetime.now()), 0, str(datetime.now()), 0, 1])
-        sql_command = "INSERT INTO policy_info_table (time_updated_policy, policy_idx, time_updated_day_in_study, calendar_decision_t, day_in_study) VALUES ({})".format(vals)
+        vals = list_to_vals([str(datetime.now()), 0])
+        sql_command = "INSERT INTO policy_info_table (time_updated_policy, policy_idx) VALUES ({})".format(vals)
         mycursor.execute(sql_command)
         TEST_MYDB.commit()
     except Exception as e:
@@ -70,6 +68,7 @@ def create_action_selection_data_table():
                                                         decision_time DATETIME,
                                                         day_in_study int,
                                                         policy_idx int,
+                                                        random_seed int,
                                                         action int,
                                                         prob double,
                                                         state_tod int,
@@ -107,6 +106,7 @@ def create_user_data_table():
                                                         decision_time DATETIME,
                                                         day_in_study int,
                                                         policy_idx int,
+                                                        random_seed int,
                                                         action int,
                                                         prob double,
                                                         state_tod int,

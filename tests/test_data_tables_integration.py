@@ -4,10 +4,11 @@ from unittest.mock import ANY
 from unittest.mock import Mock
 import numpy as np
 from datetime import datetime
-from database.data_tables_integration import *
-from database.database_connector import TEST_MYDB
-from maintain_users import add_user_to_study, user_finished_study, register_user
-from global_vars import PRIOR_MU, PRIOR_SIGMA
+
+from rl_ohrs.database.data_tables_integration import *
+from rl_ohrs.database.database_connector import TEST_MYDB
+from rl_ohrs.maintain_users import add_user_to_study, register_user
+from rl_ohrs.global_vars import PRIOR_MU, PRIOR_SIGMA
 from create_test_data_tables import (
                 init_user_info_table,
                 create_update_data_table,
@@ -21,7 +22,7 @@ def drop_test_table(table_name):
     test_cursor = TEST_MYDB.cursor()
     execute_push("DROP TABLE {}".format(table_name))
 
-@patch('database.data_tables_integration.get_db', return_value=TEST_MYDB)
+@patch('rl_ohrs.database.data_tables_integration.get_db', return_value=TEST_MYDB)
 class DataTablesIntegrationTest(unittest.TestCase):
     USER_ID = 'robas+1'
     SCHEDULE_ID = "test"
@@ -33,17 +34,12 @@ class DataTablesIntegrationTest(unittest.TestCase):
 
     ### USER INFO TABLE ###
 
-    @patch('maintain_users.get_user_decision_times', return_value=USER_DECISION_TIMES_DICT)
-    def test_check_user_registered(self, get_user_decision_times, mock_MYDB):
+    @patch('rl_ohrs.maintain_users.get_user_decision_times', return_value=USER_DECISION_TIMES_DICT)
+    def test_user_registered(self, get_user_decision_times, mock_MYDB):
         init_user_info_table()
-        result = check_user_registered(self.USER_ID)
-        self.assertEqual(0, result)
         register_user(self.USER_ID)
-        result = check_user_registered(self.USER_ID)
-        self.assertEqual(1, result)
         registered_but_not_started = get_user_info("user_start_day", self.USER_ID)
         self.assertEqual(datetime.strptime("0001-01-01", '%Y-%m-%d').date(), registered_but_not_started)
-        self.assertEqual(get_user_info("user_day_in_study", self.USER_ID), 0)
         self.assertEqual(get_user_info("morning_time_weekday", self.USER_ID), "09:00:00")
         self.assertEqual(get_user_info("evening_time_weekday", self.USER_ID), "22:00:00")
         self.assertEqual(get_user_info("morning_time_weekend", self.USER_ID), "10:00:00")
@@ -51,54 +47,7 @@ class DataTablesIntegrationTest(unittest.TestCase):
 
         drop_test_table("user_info_table")
 
-    @patch('maintain_users.get_user_decision_times', return_value=USER_DECISION_TIMES_DICT)
-    def test_get_registered_users(self, get_user_decision_times, mock_MYDB):
-        # add fake users to table
-        init_user_info_table()
-        for user_id in ['robas+1', 'robas+2', 'robas+3']:
-            register_user(user_id)
-        set_user_info('robas+2', "currently_in_study", 1)
-        set_user_info('robas+3', "user_day_in_study", 71)
-        user_finished_study('robas+3')
-        registered_users = get_registered_users()
-        self.assertEqual(registered_users, ['robas+1', 'robas+2'])
-        drop_test_table("user_info_table")
-
-    def test_get_current_study_users_empty(self, mock_MYDB):
-        # add fake users to table
-        init_user_info_table()
-        for user_id in ['robas+1', 'robas+2', 'robas+3']:
-            push_registered_user(user_id)
-        current_users = get_current_study_users()
-        self.assertEqual(current_users, [])
-        drop_test_table("user_info_table")
-
-    @patch('maintain_users.get_study_description', return_value=100)
-    @patch('maintain_users.get_user_decision_times', return_value=USER_DECISION_TIMES_DICT)
-    def test_get_current_study_users_middle_of_study(self, get_user_decision_times, get_study_description, mock_MYDB):
-        # add fake users to table
-        init_user_info_table()
-        for user_id in ['robas+1', 'robas+2', 'robas+3']:
-            push_registered_user(user_id)
-            add_user_to_study(user_id)
-        current_users = get_current_study_users()
-        self.assertEqual(current_users, ['robas+1', 'robas+2', 'robas+3'])
-        drop_test_table("user_info_table")
-
-    @patch('maintain_users.get_study_description', return_value=100)
-    @patch('maintain_users.get_user_decision_times', return_value=USER_DECISION_TIMES_DICT)
-    def test_get_current_study_users_end_of_study(self, get_user_decision_times, get_study_description, mock_MYDB):
-        # add fake users to table
-        init_user_info_table()
-        for user_id in ['robas+1', 'robas+2', 'robas+3']:
-            push_registered_user(user_id)
-            add_user_to_study(user_id)
-            user_finished_study(user_id)
-        current_users = get_current_study_users()
-        self.assertEqual(current_users, [])
-        drop_test_table("user_info_table")
-
-    @patch('maintain_users.get_study_description', return_value=1)
+    @patch('rl_ohrs.maintain_users.get_study_level_day_in_study', return_value=1)
     def test_set_and_get_user_info(self, get_study_description, mock_MYDB):
         # add fake users to table
         init_user_info_table()
@@ -109,14 +58,12 @@ class DataTablesIntegrationTest(unittest.TestCase):
         self.assertEqual(get_user_info("user_start_day", self.USER_ID), datetime.now().date())
         self.assertEqual(get_user_info("user_entry_decision_t", self.USER_ID), 0)
         self.assertEqual(get_user_info("user_last_decision_t", self.USER_ID), 140)
-        self.assertEqual(get_user_info("currently_in_study", self.USER_ID), 1)
-        self.assertEqual(get_user_info("user_day_in_study", self.USER_ID), 1)
         self.assertEqual(get_user_info("user_opened_app", self.USER_ID), 1)
         self.assertEqual(get_user_info("most_recent_schedule_id", self.USER_ID), self.SCHEDULE_ID)
         drop_test_table("user_info_table")
 
     ### UPDATE DATA TABLE ###
-    @patch("database.data_tables_integration.get_study_description", return_value=3)
+    @patch("rl_ohrs.database.data_tables_integration.get_study_description", return_value=3)
     def test_set_and_get_user_values_for_state(self, get_study_description, mock_MYDB):
         create_update_data_table()
         for day in range(1, 8):
@@ -150,7 +97,7 @@ class DataTablesIntegrationTest(unittest.TestCase):
         np.testing.assert_array_equal(result, [])
         drop_test_table("update_data_table")
 
-    @patch("database.data_tables_integration.get_study_description", return_value=3)
+    @patch("rl_ohrs.database.data_tables_integration.get_study_description", return_value=3)
     def test_get_batch_data_for_update(self, get_study_description, mock_MYDB):
         create_update_data_table()
         for day in range(1, 8):
@@ -170,7 +117,7 @@ class DataTablesIntegrationTest(unittest.TestCase):
             }
             push_update_data_for_user(self.USER_ID, evening_dt_info, evening_row)
             push_update_data_for_user(self.USER_ID, morning_dt_info, morning_row)
-        # ANNA TODO: YOU'RE HERE!!!
+
         alg_states, actions, pis, rewards = get_update_data()
         np.testing.assert_array_equal(alg_states, np.array([[[1, 0, 0, 1, 1], [0, 0, 0, 1, 1]] for _ in range(7)]).reshape(14, 5))
         np.testing.assert_array_equal(actions, np.ones(14))
@@ -188,11 +135,11 @@ class DataTablesIntegrationTest(unittest.TestCase):
         mock_evening_state = [1, -1, 0.8, 1, 1]
         policy_idx = 0
         morning_vals = [self.USER_ID, "2022-11-01", "2022-12-01", "2022-11-29 02:00:00", self.SCHEDULE_ID, \
-                        morning_dt, "2022-11-29 08:00:00", day_in_study, policy_idx, 1, 0.7, \
+                        morning_dt, "2022-11-29 08:00:00", day_in_study, policy_idx, 123, 1, 0.7, \
                         mock_morning_state[0], mock_morning_state[1], mock_morning_state[2], \
                         mock_morning_state[3], mock_morning_state[4]]
         evening_vals = [self.USER_ID, "2022-11-01", "2022-12-01", "2022-11-29 02:00:00", self.SCHEDULE_ID, \
-                        evening_dt, "2022-11-29 20:00:00", day_in_study, policy_idx, 0, 0.45, \
+                        evening_dt, "2022-11-29 20:00:00", day_in_study, policy_idx, 123, 0, 0.45, \
                         mock_evening_state[0], mock_evening_state[1], mock_evening_state[2], \
                         mock_evening_state[3], mock_evening_state[4]]
         # first push recent morning
@@ -256,8 +203,8 @@ class DataTablesIntegrationTest(unittest.TestCase):
         drop_test_table("action_selection_data_table")
 
     ### USER DATA TABLE ###
-    @patch('database.data_tables_integration.get_user_info', return_value="2022-11-29")
-    @patch("database.data_tables_integration.get_study_description", return_value=100)
+    @patch('rl_ohrs.database.data_tables_integration.get_user_info', return_value="2022-11-29")
+    @patch("rl_ohrs.database.data_tables_integration.get_study_description", return_value=100)
     def test_set_and_get_tuple_data_for_users(self, get_study_description, \
                                             get_user_decision_times, mock_MYDB):
         create_user_data_table()
@@ -266,28 +213,31 @@ class DataTablesIntegrationTest(unittest.TestCase):
         user_decision_t = 50
         day_in_study = 24
         policy_idx = 0
+        seed = 123
         push_tuple_data_for_users(self.USER_ID, self.SCHEDULE_ID, user_decision_t, \
                                     "2022-11-29 09:00:00", day_in_study, policy_idx, \
-                                    mock_morning_state, 1, 0.5)
+                                    mock_morning_state, seed, 1, 0.5)
         push_tuple_data_for_users(self.USER_ID, self.SCHEDULE_ID, user_decision_t - 1, \
                                     "2022-11-29 20:00:00", day_in_study, policy_idx, \
-                                    mock_evening_state, 1, 0.5)
+                                    mock_evening_state, seed, 1, 0.5)
         result = get_tuple_data_for_users(self.USER_ID, self.SCHEDULE_ID, user_decision_t)
 
         self.assertEqual(result[0], self.USER_ID)
         self.assertEqual(result[4], self.SCHEDULE_ID)
         self.assertEqual(result[5], user_decision_t)
-        self.assertEqual(result[9], 1)
-        self.assertEqual(result[10], 0.5)
-        self.assertEqual(list(result[11:]), mock_morning_state)
+        self.assertEqual(result[9], 123)
+        self.assertEqual(result[10], 1)
+        self.assertEqual(result[11], 0.5)
+        self.assertEqual(list(result[12:]), mock_morning_state)
 
         result = get_tuple_data_for_users(self.USER_ID, self.SCHEDULE_ID, user_decision_t - 1)
         self.assertEqual(result[0], self.USER_ID)
         self.assertEqual(result[4], self.SCHEDULE_ID)
         self.assertEqual(result[5], user_decision_t - 1)
-        self.assertEqual(result[9], 1)
-        self.assertEqual(result[10], 0.5)
-        self.assertEqual(list(result[11:]), mock_evening_state)
+        self.assertEqual(result[9], 123)
+        self.assertEqual(result[10], 1)
+        self.assertEqual(result[11], 0.5)
+        self.assertEqual(list(result[12:]), mock_evening_state)
 
         drop_test_table("user_data_table")
 
@@ -297,15 +247,9 @@ class DataTablesIntegrationTest(unittest.TestCase):
         init_policy_info_table()
         push_study_description("time_updated_policy", datetime.now())
         push_study_description("policy_idx", 1)
-        push_study_description("time_updated_day_in_study", datetime.now())
-        push_study_description("calendar_decision_t", 2)
-        push_study_description("day_in_study", 2)
 
         self.assertTrue(get_study_description("time_updated_policy") != None)
         self.assertEqual(get_study_description("policy_idx"), 1)
-        self.assertTrue(get_study_description("time_updated_day_in_study") != None)
-        self.assertEqual(get_study_description("calendar_decision_t"), 2)
-        self.assertEqual(get_study_description("day_in_study"), 2)
 
         drop_test_table("policy_info_table")
 

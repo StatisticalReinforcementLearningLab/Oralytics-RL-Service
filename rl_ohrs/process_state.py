@@ -1,6 +1,6 @@
 import numpy as np
-from reward_definition import calculate_b_bar, calculate_a_bar, normalize_b_bar
-from database.data_tables_integration import get_user_info, get_user_data
+from rl_ohrs.reward_definition import calculate_b_bar, calculate_a_bar, normalize_b_bar, normalize_a_bar
+from rl_ohrs.database.data_tables_integration import get_user_info, get_user_data
 
 """ PROCESS STATE """
 ## baseline: ##
@@ -65,7 +65,7 @@ def get_and_process_states(user_id, user_qualities, user_actions):
     b_bar, a_bar = get_b_bar_a_bar(user_qualities, \
                                     user_actions)
     app_engagement = get_user_info("user_opened_app", user_id)
-    morning_state = process_alg_state(0, normalize_b_bar(b_bar), a_bar, app_engagement)
-    evening_state = process_alg_state(1, normalize_b_bar(b_bar), a_bar, app_engagement)
+    morning_state = process_alg_state(0, normalize_b_bar(b_bar), normalize_a_bar(a_bar), app_engagement)
+    evening_state = process_alg_state(1, normalize_b_bar(b_bar), normalize_a_bar(a_bar), app_engagement)
 
     return morning_state, evening_state

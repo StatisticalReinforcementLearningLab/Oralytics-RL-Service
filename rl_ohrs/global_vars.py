@@ -12,20 +12,21 @@ D_BASELINE = 5
 # Total Feature Dimension
 RL_ALG_FEATURE_DIM = D_BASELINE + D_ADVANTAGE + D_ADVANTAGE
 ### PRIOR VALUES ###
-SIGMA_N_2 = 3396.449
-PRIOR_MU = np.array([0, 4.925, 0, 0, 82.209, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-SIGMA_BETA = 29.624
-PRIOR_SIGMA = np.diag(np.array([29.090**2, 30.186**2, SIGMA_BETA**2, SIGMA_BETA**2, 46.240**2, \
-                                    SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2,\
-                                    SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2, SIGMA_BETA**2]))
+SIGMA_N_2 = 3878
+ALPHA_0_MU = [18, 0, 30, 0, 73]
+BETA_MU = [0, 0, 0, 53, 0]
+PRIOR_MU = np.array(ALPHA_0_MU + BETA_MU + BETA_MU)
+ALPHA_0_SIGMA = [73**2, 25**2, 95**2, 27**2, 83**2]
+BETA_SIGMA = [12**2, 33**2, 35**2, 56**2, 17**2]
+PRIOR_SIGMA = np.diag(np.array(ALPHA_0_SIGMA + BETA_SIGMA + BETA_SIGMA))
+
 
 """ STUDY """
 ## Schedule Size ##
-SCHEDULE_LENGTH_IN_DAYS = 7
+SCHEDULE_LENGTH_IN_DAYS = 70
 DECISION_TIMES_PER_DAY = 2
-
-# ANNA TODO: need to change this to 35 for the pilot study
 STUDY_DURATION = 70
+STUDY_START_DATE = ""
 
 """ DATABASE """
 MEAN_COLS = ["posterior_mu_{}, ".format(i) for i in range(RL_ALG_FEATURE_DIM)]

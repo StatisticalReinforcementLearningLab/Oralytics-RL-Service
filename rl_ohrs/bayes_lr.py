@@ -1,10 +1,11 @@
 import numpy as np
-from scipy.stats import bernoulli
+from rl_ohrs.reproducible_randomness import reproducible_bernoulli
 import scipy.stats as stats
-from reward_definition import *
-from smoothing_function import genearlized_logistic_func
-from database.data_tables_integration import get_posterior_values
-from global_vars import (
+
+from rl_ohrs.reward_definition import *
+from rl_ohrs.smoothing_function import genearlized_logistic_func
+from rl_ohrs.database.data_tables_integration import get_posterior_values
+from rl_ohrs.global_vars import (
             D_ADVANTAGE,
             D_BASELINE,
             SIGMA_N_2,
@@ -26,11 +27,11 @@ def create_big_phi(advantage_states, baseline_states, actions, probs):
   return big_phi
 
 def compute_posterior_var(Phi):
-  return np.linalg.inv(1/SIGMA_N_2 * (Phi.T @ Phi) + np.linalg.inv(PRIOR_SIGMA))
+  return np.linalg.inv(1/SIGMA_N_2 * Phi.T @ Phi + np.linalg.inv(PRIOR_SIGMA))
 
 def compute_posterior_mean(Phi, R):
   return compute_posterior_var(Phi) \
-   @ (1/SIGMA_N_2 * (Phi.T @ R) + np.linalg.inv(PRIOR_SIGMA) @ PRIOR_MU)
+   @ (1/SIGMA_N_2 * Phi.T @ R + np.linalg.inv(PRIOR_SIGMA) @ PRIOR_MU)
 
 # update posterior distribution
 def update_posterior_w(Phi, R):
@@ -47,8 +48,9 @@ def bayes_lr_action_selector(beta_post_mean, beta_post_var, advantage_state):
   mu = advantage_state @ beta_post_mean
   std = np.sqrt(advantage_state @ beta_post_var @ advantage_state.T)
   posterior_prob = stats.norm.expect(func=genearlized_logistic_func, loc=mu, scale=std)
+  action, seed = reproducible_bernoulli(posterior_prob)
 
-  return bernoulli.rvs(posterior_prob), posterior_prob
+  return action, posterior_prob, seed
 
 # creating the BLR object will automatically grab the most recent parameters
 class BayesianLinearRegression():
