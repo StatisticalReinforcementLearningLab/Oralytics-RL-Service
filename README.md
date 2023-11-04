@@ -1,4 +1,33 @@
 # Oralytics-RL-Service
+This is the backend code for the RL algorithm used in the [Oralytics clinical trial](https://clinicaltrials.gov/study/NCT05624489). The RL algorithm in Oralytics optimizes the delivery of engagement prompts to participants to maximize their brushing quality (or oral self-care behaviors). For more information about Oralytics, please see the following papers:
+* [Designing Reinforcemnt Learning Algorithms for Digital Interventions: Pre-Implementation Guidelines](https://scholar.google.com/citations?view_op=view_citation&hl=en&user=mAgilOsAAAAJ&citation_for_view=mAgilOsAAAAJ:u-x6o8ySG0sC)
+* [Reward Design For An Online Reinforcement Learning Algorithm Supporting Oral Self-Care](https://scholar.google.com/citations?view_op=view_citation&hl=en&user=mAgilOsAAAAJ&citation_for_view=mAgilOsAAAAJ:d1gkVwhDpl0C)
+  
+## Citing Our Code
+If you use our code or algorithm in anyway, please cite us:
+```
+@article{trella2022designing,
+  title={Designing reinforcement learning algorithms for digital interventions: pre-implementation guidelines},
+  author={Trella, Anna L and Zhang, Kelly W and Nahum-Shani, Inbal and Shetty, Vivek and Doshi-Velez, Finale and Murphy, Susan A},
+  journal={Algorithms},
+  volume={15},
+  number={8},
+  pages={255},
+  year={2022},
+  publisher={MDPI}
+}
+```
+```
+@inproceedings{trella2023reward,
+  title={Reward design for an online reinforcement learning algorithm supporting oral self-care},
+  author={Trella, Anna L and Zhang, Kelly W and Nahum-Shani, Inbal and Shetty, Vivek and Doshi-Velez, Finale and Murphy, Susan A},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={37},
+  number={13},
+  pages={15724--15730},
+  year={2023}
+}
+```
 
 ## Creating MySQL Data Tables
 1. Make sure you have mysql installed locally ([video here](https://www.youtube.com/watch?v=1K4m6m5y9Oo)).
